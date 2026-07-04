@@ -11,6 +11,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
     </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -156,9 +158,6 @@
             font-size: 70px;
             margin-bottom: 25px;
             display: block;
-            background: linear-gradient(135deg, #ff6b6b, #ff9f43);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
             animation: iconPulse 2s infinite ease-in-out;
         }
         @keyframes iconPulse {
@@ -180,6 +179,40 @@
             box-shadow: 0 8px 20px rgba(61, 114, 255, 0.3);
         }
         .close-modal:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(61, 114, 255, 0.4); }
+
+        /* ── BIRTHDAY LIST (TAMBAHAN) ── */
+        .birthday-header { margin-bottom: 25px; }
+        
+        .birthday-list {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 25px;
+            padding-right: 5px;
+            text-align: left;
+        }
+
+        .birthday-list::-webkit-scrollbar { width: 5px; }
+        .birthday-list::-webkit-scrollbar-thumb { background: rgba(61, 114, 255, 0.2); border-radius: 10px; }
+
+        .student-item {
+            background: rgba(61, 114, 255, 0.05);
+            padding: 15px 20px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(61, 114, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        .student-info h4 { color: #1a2a4a; font-size: 16px; margin-bottom: 2px; }
+        .student-info p { color: #3d72ff; font-size: 13px; font-weight: 600; }
+        
+        .no-birthday { color: #7a8fb5; font-size: 15px; padding: 20px; font-style: italic; }
 
         /* ── FORM CARD (ASLI) ── */
         .card {
@@ -539,6 +572,9 @@
     <audio id="dingSound" preload="auto">
         <source src="ding.mp3" type="audio/mpeg">
     </audio>
+    <audio id="birthdayMusic" preload="auto" loop>
+        <source src="Hbd.mp3" type="audio/mpeg">
+    </audio>
 
     <!-- ─── MENU (TAMBAHAN) ─── -->
     <div class="menu-container">
@@ -565,12 +601,17 @@
     <!-- ─── MODAL ULANG TAHUN (TAMBAHAN) ─── -->
     <div class="modal-overlay" id="birthdayModal">
         <div class="modal-content">
-            <div class="birthday-ui">
-                <i class="fas fa-gift birthday-icon"></i>
-                <h2 class="birthday-title">Ulang Tahun Digital</h2>
-                <p class="birthday-desc">Fitur ini sedang dalam tahap pengembangan. Nantikan kejutan spesial untuk hari ulang tahunmu di sini!</p>
-                <button class="close-modal" onclick="closeBirthdayModal()">Tutup</button>
+            <div class="birthday-header">
+                <span class="birthday-icon">🎂</span>
+                <h2 class="birthday-title" id="hbdTitle">Ulang Tahun Hari Ini</h2>
+                <p class="birthday-desc" id="hbdDesc">Daftar siswa SMK Bagimu Negeriku yang merayakan ulang tahun hari ini.</p>
             </div>
+            
+            <div class="birthday-list" id="birthdayList">
+                <!-- Diisi via JS -->
+            </div>
+
+            <button class="close-modal" onclick="closeBirthdayModal()">Tutup</button>
         </div>
     </div>
 
@@ -677,6 +718,266 @@
         const menuBtn = document.getElementById('menuBtn');
         const menuDropdown = document.getElementById('menuDropdown');
         const birthdayModal = document.getElementById('birthdayModal');
+        const birthdayList = document.getElementById('birthdayList');
+        const hbdTitle = document.getElementById('hbdTitle');
+        const hbdDesc = document.getElementById('hbdDesc');
+        const birthdayMusic = document.getElementById('birthdayMusic');
+
+        // DATA SISWA (BIRTHDAY)
+        const studentData = [
+            {"nama": "Andini", "tgl": 3, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Angelia Revina Putri", "tgl": 20, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Aprillianus Candra", "tgl": 28, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Christian Samuel Christanto", "tgl": 23, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Graceya Joey Celita Nababan", "tgl": 5, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Herlina Natasya Pasaribu", "tgl": 20, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Holly Gresia Hawila", "tgl": 28, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Indah Karunia Wati Suci", "tgl": 20, "bln": 5, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Intan Viviah Marsaulina Br Sijabat", "tgl": 16, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Javier Filadelfia Wahani", "tgl": 12, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Jerremia Revano Siahaan", "tgl": 19, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Juan Fernando Sihotang", "tgl": 10, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Julia Marsyahnas Fenanlampir", "tgl": 13, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Lia", "tgl": 30, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Maria Magdalena Amjena", "tgl": 30, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Natalia Orogen", "tgl": 17, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Ofliyana Manimoi", "tgl": 7, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Petra Salvador Nautani", "tgl": 15, "bln": 5, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Poni", "tgl": 1, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Putri Asianavada Hermawan", "tgl": 10, "bln": 5, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Ricart Alfiano Manihuruk", "tgl": 9, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Sani Delila Taheok", "tgl": 21, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Scolastika Brenda Peniharon Efendi", "tgl": 21, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Tirza Tiatyra Aprilla", "tgl": 9, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Yoel Christian Setiawan", "tgl": 2, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Andreas Messakh", "tgl": 18, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Arkadius Kevin Kapo", "tgl": 11, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Arya Villareal Pratama", "tgl": 23, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Bonevasius Meron", "tgl": 16, "bln": 9, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Davian Ardiana Putra Madyanto", "tgl": 28, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Farel Wibowo Wirayudha", "tgl": 5, "bln": 5, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Fransiskus Epin", "tgl": 26, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Gino Gonsales", "tgl": 15, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Liborius Kuklon Wambray", "tgl": 17, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Lipigus", "tgl": 3, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Manuel Alvinsus Ferdy", "tgl": 27, "bln": 11, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Margareta Hindi Kusumawati", "tgl": 9, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Marszel", "tgl": 14, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Raja Alpino", "tgl": 26, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Reno Julian Valentino", "tgl": 7, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Ronaldo Daepani", "tgl": 8, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Ruben Iyan Syahputra", "tgl": 22, "bln": 11, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Satria Arya Candra Putra Dermawan", "tgl": 2, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Stevanus Olong", "tgl": 8, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Vanjio", "tgl": 30, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Wido", "tgl": 8, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Yufentus Okubuna", "tgl": 22, "bln": 11, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Aksamina Selvie  Rumarakon", "tgl": 8, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Beni", "tgl": 1, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Candra Yedija", "tgl": 8, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Chico Stepanus Simanjuntak", "tgl": 3, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Evann Jouseph Eurellio Mamiga Jolmen", "tgl": 6, "bln": 9, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Hubertus. K. Kotanon", "tgl": 19, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Isak Imanuel M.L. Kafelmalai", "tgl": 24, "bln": 9, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Jodi Admaja", "tgl": 9, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Kaitanus Y. M. Animung", "tgl": 19, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Kesya Elly Bunga Tupitu", "tgl": 29, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Kevin Mecallister", "tgl": 21, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Laurensius Khel Eliano Liwu M", "tgl": 18, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Marcelino Juando Metemko", "tgl": 10, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Natasya Ambar Rani", "tgl": 30, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Norisman  Vabio Pablo Rao", "tgl": 20, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Rikad Kindom", "tgl": 25, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Tesalonika Imel Agustin", "tgl": 24, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Yohanes Yordan Muji", "tgl": 30, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Yohanis Kewotmen", "tgl": 14, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Amelia Putri Cahyadewi", "tgl": 8, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Besta Paramitha Daniel", "tgl": 25, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Cici Zefanya Trisilia Lemboh", "tgl": 17, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Cinta Agata Gloryna", "tgl": 16, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Dwynda Samongilailai", "tgl": 6, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Fence  Ronitikuk", "tgl": 2, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Galang Dama Istiyawan", "tgl": 30, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Gloria Berlian Bureran", "tgl": 29, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Jasel Riani", "tgl": 9, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Joy De Angelo Sawias", "tgl": 12, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Kharisa Nathalia", "tgl": 24, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Laura Asima", "tgl": 2, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Mardels Refani Taubu Siritoitet", "tgl": 18, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Maria Vivi Wisang", "tgl": 18, "bln": 11, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Misael Eldin Wibowo", "tgl": 21, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Nofita Padaka", "tgl": 1, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Pasculina Sakira", "tgl": 6, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Rachel Aginta Br Purba", "tgl": 22, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Rahma Kusuma Putri", "tgl": 27, "bln": 9, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Ririn Manulang", "tgl": 21, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Rizky Fadhilah", "tgl": 16, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Sherrin Eliata Christy", "tgl": 26, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Tiarma Br Manik", "tgl": 26, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Tirsa Laurenzia", "tgl": 5, "bln": 11, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Yeffi Mildiani Nioti", "tgl": 5, "bln": 5, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Yesika Fenia Yumok", "tgl": 15, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Albertina Buwok", "tgl": 1, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Anisa Wahyuni", "tgl": 27, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Asti Kii Bora", "tgl": 26, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Azahra Ada Magani", "tgl": 15, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Chyntia Dwina Uly Sirait", "tgl": 28, "bln": 9, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Devilia Warai", "tgl": 25, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Emiracle Sensi Br Tarigan", "tgl": 8, "bln": 11, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Ester Nanda Sari", "tgl": 23, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Kalisa", "tgl": 25, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Maria Namboyap", "tgl": 14, "bln": 8, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Meilani Meilan", "tgl": 12, "bln": 5, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Munau Waratul Zuwina", "tgl": 5, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Neva Kurniawaty", "tgl": 8, "bln": 5, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Niken Cicilia", "tgl": 15, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Niko Subangkit Padang", "tgl": 9, "bln": 10, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Oey Paga Benaiah", "tgl": 27, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Olivia Aprilia Nino", "tgl": 7, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Putri Dwi Sintiasih", "tgl": 23, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Renny Maria Yoku", "tgl": 16, "bln": 1, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Sabrina Jovieta Suryodaru", "tgl": 2, "bln": 6, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Selviana Mawo", "tgl": 3, "bln": 12, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Sheina Geraldine", "tgl": 7, "bln": 3, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Terima Kasih Laia", "tgl": 16, "bln": 2, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Thomas Risky Pangestu Hermawan", "tgl": 18, "bln": 7, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Yesi Prolinda", "tgl": 29, "bln": 4, "kelas": "KELAS 11", "jurusan": "DKV"},
+            {"nama": "Alfaro Naras Kenipa", "tgl": 28, "bln": 11, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Andhika Wicaksana", "tgl": 20, "bln": 4, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Aril Steven Sitohang", "tgl": 29, "bln": 6, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "David Yehuda Surbakti", "tgl": 15, "bln": 10, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Febryan Imanuel Puay", "tgl": 8, "bln": 2, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Gelsen Kristovan Saleleubaja", "tgl": 25, "bln": 1, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Giovany Durop Kirokay", "tgl": 9, "bln": 11, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Jeanne Kezia Felosa", "tgl": 28, "bln": 6, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Marcellino Melvin Willis", "tgl": 3, "bln": 11, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Marsel Stevanus Banurea", "tgl": 27, "bln": 3, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Mutiara Zahratul Ahlam", "tgl": 9, "bln": 12, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Oswald Tito Setyo Budi", "tgl": 7, "bln": 7, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Santiago Tan", "tgl": 13, "bln": 10, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Stephen Abraham", "tgl": 21, "bln": 5, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Vines Fernando Siritoitet", "tgl": 23, "bln": 12, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Vinzent Robertho Rumere", "tgl": 25, "bln": 9, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Yohanis Bawon", "tgl": 5, "bln": 9, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Yokhanan Yabes Alfa Tyanto", "tgl": 26, "bln": 1, "kelas": "KELAS 11", "jurusan": "RPL"},
+            {"nama": "Andika Sapalakki", "tgl": 31, "bln": 3, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Angelita Tian Iskyudea", "tgl": 22, "bln": 3, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Delik Wilson Anggiyatsyah Bancin", "tgl": 23, "bln": 8, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Gabriel Bintang Rahmadani", "tgl": 22, "bln": 6, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Gabriella Marsha Anggraini Sutanto", "tgl": 3, "bln": 4, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Handoli Albert Dejens J. S.", "tgl": 8, "bln": 11, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Ilana Deby Vebriar", "tgl": 4, "bln": 2, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Kezia Angelica Nauli Br Sihombing", "tgl": 23, "bln": 7, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Laurenza Sirait", "tgl": 31, "bln": 1, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Loisa Tara Josevine", "tgl": 14, "bln": 4, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Marthalina Susanty Toabnani", "tgl": 21, "bln": 3, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Meilda Janggerni", "tgl": 24, "bln": 5, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Neisya Tatarani Tallo", "tgl": 4, "bln": 6, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Neny Carera Elly", "tgl": 27, "bln": 6, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Sifra Agustin Cahyani", "tgl": 24, "bln": 8, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Siti Aminah Purba", "tgl": 13, "bln": 9, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Yohana", "tgl": 9, "bln": 12, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Yolan Selvia Ziliwu", "tgl": 25, "bln": 9, "kelas": "KELAS 12", "jurusan": "DKV 1"},
+            {"nama": "Agata Caroline Putri Herkant", "tgl": 23, "bln": 5, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Flaevel Maydeone Toto", "tgl": 11, "bln": 5, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Gabriel Rae Nathan", "tgl": 10, "bln": 4, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Grace Hana Aprilia", "tgl": 20, "bln": 4, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Hizkia Abdiel Alfianus", "tgl": 30, "bln": 11, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "I Nyoman Bagus Satria Utama Suryana", "tgl": 6, "bln": 9, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Johana Impiarmsen Yuliance Mandowen", "tgl": 24, "bln": 6, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Keila Fatwasari", "tgl": 7, "bln": 7, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Keveren Nafareth Putra Agung", "tgl": 22, "bln": 6, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Keyren Imanuella Dwienno Putri", "tgl": 9, "bln": 9, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Okky Aditya Nugroho", "tgl": 8, "bln": 10, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Oktaviana Fransiska Selvi", "tgl": 11, "bln": 7, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Rizky Dwi Saputra", "tgl": 22, "bln": 11, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Sumeidesis Nicho", "tgl": 7, "bln": 11, "kelas": "KELAS 12", "jurusan": "DKV 2"},
+            {"nama": "Abigail Tirza Rachel Thomas W.", "tgl": 6, "bln": 2, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Adyaksa Sukma Darmawan", "tgl": 2, "bln": 10, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Agnes Anjuwita Matanari", "tgl": 17, "bln": 1, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Albertina Buwok", "tgl": 1, "bln": 1, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Aryanti Boko Lidda", "tgl": 11, "bln": 2, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Aulia Mega Kencana", "tgl": 27, "bln": 7, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Ayu", "tgl": 13, "bln": 1, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Dwinda Putri Salsa Bela", "tgl": 3, "bln": 9, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Febiyana Magi Moto", "tgl": 25, "bln": 2, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Gustri Prana Sitepu", "tgl": 19, "bln": 8, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Hayan", "tgl": 1, "bln": 7, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Katrin Ivana Prawika", "tgl": 1, "bln": 6, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Kezia Amelia Maita", "tgl": 29, "bln": 12, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Kharis Elisabeth", "tgl": 19, "bln": 7, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Lusiana Oktaviona", "tgl": 13, "bln": 10, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Magdalena Angelina Cahyaputri", "tgl": 9, "bln": 5, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Maria Avirli Pae Wea", "tgl": 12, "bln": 1, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Meira Mercia Chaliza", "tgl": 25, "bln": 5, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Naomi Wina", "tgl": 10, "bln": 4, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Nia Winarti", "tgl": 29, "bln": 11, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Novela Miwonon", "tgl": 22, "bln": 10, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Quinsa Paramita", "tgl": 7, "bln": 8, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Rossita", "tgl": 22, "bln": 10, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Serafina Meproye", "tgl": 10, "bln": 7, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Setia Zefania Josephine", "tgl": 28, "bln": 1, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Varel Trianda Sinaga", "tgl": 6, "bln": 6, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Veronica Ayu Puspita", "tgl": 17, "bln": 7, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Wilhelmina Talenggon", "tgl": 6, "bln": 12, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Yasinta Gresilia Eku", "tgl": 17, "bln": 8, "kelas": "KELAS 12", "jurusan": "KLN"},
+            {"nama": "Aventina", "tgl": 7, "bln": 12, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Aprilia Mutiara Kasih", "tgl": 20, "bln": 4, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Aulia Fitri", "tgl": 17, "bln": 9, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Christyn Febina BR Surbakti", "tgl": 13, "bln": 6, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Elvis Aprilla", "tgl": 2, "bln": 4, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Erpis", "tgl": 17, "bln": 7, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Eurisko Wahyu", "tgl": 4, "bln": 11, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Ghea Melanisa Ayu Sagita", "tgl": 23, "bln": 6, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Ismael Wahyudi", "tgl": 3, "bln": 9, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Jonatan Valentino Aditya", "tgl": 13, "bln": 2, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Pratama Iman Berkat Bate'e", "tgl": 16, "bln": 10, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Randy Brandom Yandeday", "tgl": 11, "bln": 6, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Ravael Asarya Rompas", "tgl": 10, "bln": 7, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Selvi Yunita", "tgl": 2, "bln": 2, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Yendra Kana Kaha", "tgl": 24, "bln": 5, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Yehezkiel Kristiawan", "tgl": 26, "bln": 9, "kelas": "KELAS 12", "jurusan": "RPL"},
+            {"nama": "Adly Pujiwiyepta", "tgl": 21, "bln": 9, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Andreas Dwi Mei Trinanto", "tgl": 3, "bln": 5, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Andreas Ellok Wijaya", "tgl": 4, "bln": 6, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Binar Ayu Pradana", "tgl": 15, "bln": 6, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Daniel Sabettliake", "tgl": 27, "bln": 3, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Findi Olyvianti", "tgl": 27, "bln": 8, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Imanuel Robert Tabisu", "tgl": 29, "bln": 8, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Iwan Wengmo", "tgl": 29, "bln": 3, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Jesika Ruth Natalia BR Parapat", "tgl": 28, "bln": 12, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Johan", "tgl": 14, "bln": 7, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Laora Okaop", "tgl": 2, "bln": 7, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Laorensius Tenjap", "tgl": 1, "bln": 1, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Louix Yosua Samangilailai", "tgl": 10, "bln": 9, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Made Rai Fernando Raditya Nugroho", "tgl": 1, "bln": 12, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Majestine Yoel Alfando", "tgl": 16, "bln": 4, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Melandi Bora", "tgl": 7, "bln": 7, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Pascalis Madai", "tgl": 4, "bln": 11, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Steven Kurniawan Waruwu", "tgl": 7, "bln": 3, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Yoga Ricardo", "tgl": 9, "bln": 7, "kelas": "KELAS 12", "jurusan": "TKP"},
+            {"nama": "Ali Mashur", "tgl": 8, "bln": 8, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Damar Dwi Saputra", "tgl": 31, "bln": 12, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Daniel Ferry Kurniawan", "tgl": 9, "bln": 11, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Deffi Carisa", "tgl": 17, "bln": 2, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Gabriel Genesis Glen Wongkar", "tgl": 3, "bln": 3, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Imanuel Saputra Jati Nugroho", "tgl": 19, "bln": 5, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Januari", "tgl": 5, "bln": 1, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Kristian Pundar Pahihing", "tgl": 25, "bln": 12, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Laurensius Wenggong", "tgl": 28, "bln": 10, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Linus Yembaimo", "tgl": 28, "bln": 5, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Nadira Oktaveni", "tgl": 1, "bln": 10, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Nanda Eka Putra", "tgl": 21, "bln": 7, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Natanael Dwika Mahendra", "tgl": 3, "bln": 11, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Petrus Agung Hari Mardhika", "tgl": 11, "bln": 8, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Ricshon Hidayat Saogo", "tgl": 24, "bln": 6, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Rio Dwi Prasetyo", "tgl": 6, "bln": 3, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Ryan Irawanto", "tgl": 7, "bln": 12, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Sakarias Dion Sahetapi", "tgl": 4, "bln": 3, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Stepanus Andri", "tgl": 5, "bln": 5, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Steven Charly Wahoyo", "tgl": 28, "bln": 5, "kelas": "KELAS 12", "jurusan": "TP"},
+            {"nama": "Yoseph Sergio Usboko", "tgl": 28, "bln": 3, "kelas": "KELAS 12", "jurusan": "TP"}
+        ];
 
         // 3. MENU LOGIC (TAMBAHAN)
         menuBtn.addEventListener('click', (e) => {
@@ -690,12 +991,76 @@
         });
 
         function openBirthdayModal() {
+            const now = new Date();
+            const day = now.getDate();
+            const month = now.getMonth() + 1;
+
+            const luckyStudents = studentData.filter(s => s.tgl === day && s.bln === month);
+
+            birthdayList.innerHTML = '';
+            
+            if (luckyStudents.length > 0) {
+                hbdTitle.innerText = "Selamat Ulang Tahun!";
+                hbdDesc.innerText = `Hari ini ada ${luckyStudents.length} siswa yang merayakan ulang tahun. Mari beri selamat!`;
+                
+                const monthNames = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                
+                luckyStudents.forEach((student, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'student-item';
+                    item.style.animationDelay = `${index * 0.1}s`;
+                    item.innerHTML = `
+                        <div style="font-size: 30px;">🎈</div>
+                        <div class="student-info">
+                            <h4>${student.nama}</h4>
+                            <p><i class="fas fa-calendar-day" style="font-size: 12px; margin-right: 5px;"></i>${student.tgl} ${monthNames[student.bln]}</p>
+                        </div>
+                    `;
+                    birthdayList.appendChild(item);
+                });
+
+                triggerConfetti();
+                
+                try {
+                    birthdayMusic.currentTime = 0;
+                    birthdayMusic.play().catch(e => console.log("Music play blocked by browser."));
+                } catch(e) {}
+
+            } else {
+                hbdTitle.innerText = "Ulang Tahun Digital";
+                hbdDesc.innerText = "Tidak ada siswa yang berulang tahun hari ini.";
+                birthdayList.innerHTML = '<div class="no-birthday">Belum ada yang merayakan hari spesial hari ini. Tetap semangat! ✨</div>';
+            }
+
             birthdayModal.style.display = 'flex';
             menuDropdown.style.display = 'none';
         }
 
         function closeBirthdayModal() {
             birthdayModal.style.display = 'none';
+            try {
+                birthdayMusic.pause();
+            } catch(e) {}
+        }
+
+        function triggerConfetti() {
+            const duration = 3 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 300 };
+
+            const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
         }
 
         // 4. TEXTAREA AUTO HEIGHT
